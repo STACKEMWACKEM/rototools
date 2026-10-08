@@ -1,5 +1,39 @@
 # Verification and remaining release work — 2026-10-08
 
+## CPU AI and preview follow-up
+
+In a fresh checkout of commit `758b139`, the production build and all nine
+frontend domain tests passed. The Python run passed 15 tests and failed the
+existing missing-model test because an actual model was now installed. That test
+now selects a deliberately absent checkpoint, so its assumption is independent
+of developer setup. New checks cover atomic verified downloads and rejection
+of corrupted artifacts.
+
+The official Meta Hugging Face tiny checkpoint downloaded successfully:
+156,008,466 bytes, SHA-256
+`7402e0d864fa82708a20fbd15bc84245c2f26dff0eb43a4b5b93452deb34be69`.
+CPU PyTorch 2.7.1 and pinned SAM source were installed; `scripts.check_model`
+successfully loaded the actual model on CPU. This was **loading only**.
+
+The execution workspace then disconnected before real selection/tracking checks
+could run. The new CPU AI smoke and browser-preview setup have been saved for
+remote verification. Their result must be reported from an actual completed run;
+they are not assumed to pass because code exists. A model-load success must not
+be relabeled as an inference or subject-quality success.
+
+GitHub Codespaces configuration now installs and starts the complete private
+preview. A codespace has not yet been created in the user's account, so there
+is no verified live preview address or physical-device result. Fine-edge matting
+is still unavailable. The automated workflow records build, API/media, browser
+and actual CPU inference results separately.
+
+## Original build report
+
+The following record was supplied with the initial implementation. Its
+unavailable-runtime/403 observations describe that earlier workspace; use the
+follow-up above for the current artifact-loading status.
+
+
 The local editor and connected CPU processing workflow run. This is **not yet a
 fully verified release of the entire specification**: actual SAM selection and
 tracking, physical-device checks and a public HTTPS deployment are unavailable

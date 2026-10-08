@@ -1,0 +1,109 @@
+name: Verify editor and CPU AI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  editor:
+    name: Editor, API, media and browser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.19.0"
+          cache: npm
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.14"
+          cache: pip
+          cache-dependency-path: requirements.lock.txt
+      - name: Install native media tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          command -v google-chrome
+      - name: Install and check the app
+        run: |
+          python -m pip install -r requirements.lock.txt
+          npm ci --no-audit --no-fund
+          npm run build
+          npm test
+          python -m pytest server/tests -q
+          python -m scripts.fixtures work/fixtures
+      - name: Start the actual API and worker
+        run: |
+          mkdir -p work
+          ROTOTOOLS_DATA=work/ci-data SAM2_CHECKPOINT=work/absent-model.pt python -m server.serve --host 127.0.0.1 >work/preview.log 2>&1 &
+          python - <<'PY'
+          import json, time, urllib.request
+          for _ in range(90):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:8000/api/capabilities", timeout=2) as response:
+                      caps = json.load(response)
+                  if caps["workerReady"]:
+                      assert set(caps["exports"]["formats"]) == {"mp4", "matte", "png", "prores"}, caps
+                      assert not caps["model"]["ready"], caps
+                      break
+              except OSError:
+                  pass
+              time.sleep(1)
+          else:
+              raise SystemExit("Processing worker failed to become ready")
+          PY
+      - name: Browser workflow including production offline editing
+        env:
+          PRODUCTION_URL: http://127.0.0.1:8000
+        run: |
+          export CHROMIUM_PATH="$(command -v google-chrome)"
+          npm run test:browser
+      - name: Save browser evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: editor-checks
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            work/preview.log
+            work/editor-desktop.png
+            work/editor-mobile.png
+            work/browser-export.mp4
+            test-results/
+
+  cpu-ai:
+    name: Codespaces container and real CPU inference
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the exact preview container
+        run: docker build --tag rototools-dev --file .devcontainer/Dockerfile .devcontainer
+      - name: Run the exact preview dependency and model setup
+        run: |
+          docker run --rm --env SAM2_DEVICE=cpu --env SAM2_CPU_THREADS=2 --volume "$PWD:/workspace" --workdir /workspace rototools-dev bash .devcontainer/setup.sh
+      - name: Verify actual selection, temporal tracking and exports
+        run: |
+          docker run --rm --env SAM2_DEVICE=cpu --env SAM2_CPU_THREADS=2 --volume "$PWD:/workspace" --workdir /workspace rototools-dev .venv/bin/python -m scripts.smoke_ai --output work/ai-smoke
+      - name: Run tests with the model actually installed
+        run: |
+          docker run --rm --env SAM2_DEVICE=cpu --env SAM2_CPU_THREADS=2 --volume "$PWD:/workspace" --workdir /workspace rototools-dev .venv/bin/python -m pytest server/tests -q
+      - name: Save actual inference evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cpu-ai-checks
+          retention-days: 7
+          if-no-files-found: warn
+          path: work/ai-smoke/

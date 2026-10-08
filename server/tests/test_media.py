@@ -313,7 +313,10 @@ def test_audio_offset_preserved_and_snapshot_is_immutable(client, auth, fixtures
         assert abs(cue - 0.04 + idx[0] / 48000 - cue) < 1 / 30
 
 
-def test_unsupported_model_stays_unavailable_and_queue_fails_honestly(client):
+def test_unsupported_model_stays_unavailable_and_queue_fails_honestly(
+    client, monkeypatch, tmp_path
+):
+    monkeypatch.setenv("SAM2_CHECKPOINT", str(tmp_path / "missing.pt"))
     provider = SAM2()
     assert not provider.load()
     assert not provider.capabilities()["ready"]

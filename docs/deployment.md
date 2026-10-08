@@ -2,6 +2,12 @@
 
 ## Current preview status
 
+For browser testing without ZIP downloads or DNS setup, use the
+[Codespaces preview guide](preview.md). Its dev container starts the app and
+worker together. No codespace or live preview URL has been created by this
+workspace; creation runs in the repository owner's GitHub account.
+
+
 The managed workspace can run the app locally, but does not expose a public HTTPS
 port. No public hostname, DNS control, hosting credential, or persistent external
 CPU/GPU service is configured. Its configured outbound identities list is empty.
@@ -60,39 +66,44 @@ multi-host queue.
 
 ## Enable actual SAM 2.1 selection and tracking
 
-No vision model ran in this environment. The official checkpoint URL was tested
-and returned a proxy `403 Forbidden`; `torch`, model weights and a CUDA GPU were
-not supplied. The manual workflow and exports are independent of those items.
-Do not enable the controls by changing a readiness flag.
+The original build's checkpoint host returned HTTP 403. The official Meta
+Hugging Face mirror is now reachable, and the pinned tiny checkpoint has loaded
+successfully on CPU. A CUDA GPU is optional for correctness; it can improve
+speed, which still needs measurement on actual camera clips.
 
-Use a machine allowed to download the official artifacts. Follow the pinned
-SAM repository's README and your hardware's supported PyTorch installation.
-CPU is an explicit adapter option for correctness experiments; GPU acceleration
-is recommended for useful video-processing speed, but no real speed guarantee
-has been measured here.
+[Codespaces preview setup](preview.md) installs the complete CPU runtime
+automatically. For another machine, use these commands from the repository root:
 
 ```bash
-# In a Python 3.12 virtual environment, from the repository root:
+# Activate your Python 3.12 virtual environment first.
 python -m pip install -r requirements.lock.txt
-python -m pip install -r requirements-ai.txt
-mkdir -p models
-curl --fail --location --output models/sam2.1_hiera_tiny.pt \
-  https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_tiny.pt
-sha256sum models/sam2.1_hiera_tiny.pt
-export SAM2_CHECKPOINT="$PWD/models/sam2.1_hiera_tiny.pt"
-# Copy the reviewed artifact's 64-character digest from the previous command.
-export SAM2_SHA256=REPLACE_WITH_VERIFIED_DIGEST
-export SAM2_CONFIG=configs/sam2.1/sam2.1_hiera_t.yaml
-export SAM2_DEVICE=cuda
-# Or SAM2_DEVICE=cpu for an explicitly CPU-only evaluation.
+python -m pip install --index-url https://download.pytorch.org/whl/cpu \
+  torch==2.7.1 torchvision==0.22.1
+python -m pip install setuptools==80.9.0 wheel==0.45.1
+SAM2_BUILD_CUDA=0 python -m pip install --no-build-isolation -r requirements-ai.txt
+python -m scripts.download_model
+export SAM2_DEVICE=cpu
+export SAM2_CPU_THREADS=2
 python -m scripts.check_model
-python -m server.worker
+python -m scripts.smoke_ai
+python -m server.serve
 ```
 
-These AI setup commands are supplied for the unavailable infrastructure and were
-not successfully executed here. Comparing a digest against an independently
-reviewed acquisition record establishes repeatability; computing the digest
-alone is not an upstream authenticity signature.
+The downloader pins the official repository revision, byte length and SHA-256
+in `server/model_artifacts.py`. It writes into ignored `models/`, verifies
+before replacing a file and reuses a verified cache. Readiness validates the
+same digest before loading; downloaded provenance JSON is informational only.
+The default checkpoint path works without manually entering a digest.
+
+A custom checkpoint requires exported `SAM2_CHECKPOINT`, its independently
+reviewed `SAM2_SHA256`, and a matching `SAM2_CONFIG`. `SAM2_DEVICE=auto`
+selects CUDA when available and CPU otherwise. For CUDA, first install a
+hardware-appropriate PyTorch wheel following the official PyTorch/SAM guides.
+CPU runs disable SAM's optional CUDA connected-components postprocessing.
+
+A successful model-load check establishes runtime availability. The real
+inference smoke establishes the selected integration checks. Neither establishes
+human/animal/animation quality, hair matting or physical-device performance.
 
 For Docker, derive an AI worker image from `rototools:local`, install the optional
 runtime during the image build, mount reviewed weights read-only at `/models`,

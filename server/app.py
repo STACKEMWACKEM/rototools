@@ -79,6 +79,13 @@ def enqueue(user, project, kind, payload, key):
         raise HTTPException(409, str(e))
 
 
+@app.get("/api/health")
+def health():
+    with store.db() as c:
+        c.execute("SELECT 1").fetchone()
+    return {"status": "ok"}
+
+
 @app.get("/api/capabilities")
 def capabilities():
     with store.db() as c:

@@ -4,6 +4,10 @@ The exact JavaScript graph is pinned in package-lock.json; npm-dependencies.json
 records observed versions and package license declarations. The exact Python
 graph used by the build is pinned in requirements.lock.txt. requirements.txt lists
 direct dependencies; requirements-ai.txt is optional and not installed here.
+The browser-preview setup also pins CPU PyTorch 2.7.1, torchvision 0.22.1,
+SAM source, and the independently reviewed model artifact below. SAM's
+transitive dependencies are resolved by pip; they are not a fully locked AI graph.
+Setuptools 80.9.0 and wheel 0.45.1 are installed before SAM's non-isolated build.
 Review bundled license notices and distribution obligations when redistributing
 builds; package metadata is an inventory, not a legal opinion.
 
@@ -23,7 +27,7 @@ builds; package metadata is an inventory, not a legal opinion.
 | Pillow | 12.1.1 | MIT-CMU |
 | FFmpeg / ffprobe | 7.1.5-0+deb13u1 | Installed build enables GPL and libx264; exact configuration in ffmpeg-build.txt |
 | SAM 2 source | 2b90b9f5ceec907a1c18123530e92e794ad901a4 | Official Apache-2.0 repository; source README and predictor rechecked |
-| SAM 2.1 weights | tiny candidate; large evaluation candidate | Not downloaded/distributed here; record filename and reviewed SHA-256 before loading |
+| SAM 2.1 weights | tiny, pinned official Meta Hugging Face revision | SHA-256 and size pinned in server/model_artifacts.py; downloaded at setup time, excluded from Git |
 | Robust Video Matting | Not adopted | Human-specific; official code GPL-3.0; artifact terms and temporal quality need review |
 
 Official SAM 2 sources:
@@ -34,9 +38,16 @@ Official checkpoint acquisition:
 https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_tiny.pt
 https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
 
-The tiny download host returned proxy HTTP 403 in this workspace. Checkpoint
-identity, GPU memory, cold loading time, warm inference, correction quality and
-tiny/large comparison remain unmeasured. No SAM 3 access token or external paid
+The initial tiny download host returned proxy HTTP 403. The official Meta
+Hugging Face mirror subsequently downloaded successfully and loaded on CPU.
+Pinned mirror: `facebook/sam2.1-hiera-tiny`, revision
+`de431c4043854a71d8101e17995dfe596bf101a5`,
+filename `sam2.1_hiera_tiny.pt`, 156,008,466 bytes,
+SHA-256 `7402e0d864fa82708a20fbd15bc84245c2f26dff0eb43a4b5b93452deb34be69`.
+The digest was checked against the Git LFS pointer at that upstream revision,
+rather than treating a newly downloaded file's self-computed digest as trust.
+GPU memory, real-subject correction quality and tiny/large comparison remain
+unmeasured. See verification.md for actual inference smoke status. No SAM 3 access token or external paid
 model API is required by this implementation. No model weights are embedded in
 the frontend or included in the delivered source archive.
 
