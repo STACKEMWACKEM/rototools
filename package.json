@@ -1,0 +1,33 @@
+{
+  "name": "rototools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build && node scripts/prepare-pwa.mjs",
+    "test": "vitest run",
+    "test:browser": "playwright test",
+    "check": "npm run build && npm test",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.0.1",
+    "fflate": "0.8.2",
+    "idb": "8.0.3",
+    "mediabunny": "1.61.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "prettier": "3.9.9",
+    "typescript": "5.9.3",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  }
+}

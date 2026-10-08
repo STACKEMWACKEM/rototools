@@ -1,0 +1,43 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: rototools:local
+    restart: unless-stopped
+    environment:
+      ROTOTOOLS_DATA: /data
+      ROTOTOOLS_RETENTION_HOURS: ${ROTOTOOLS_RETENTION_HOURS:-24}
+    volumes: ["media:/data"]
+    expose: ["8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/capabilities')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    mem_limit: 2g
+  worker:
+    image: rototools:local
+    command: ["python", "-m", "server.worker"]
+    restart: unless-stopped
+    environment:
+      ROTOTOOLS_DATA: /data
+      ROTOTOOLS_RETENTION_HOURS: ${ROTOTOOLS_RETENTION_HOURS:-24}
+    volumes: ["media:/data"]
+    depends_on: [api]
+    mem_limit: 4g
+  https:
+    image: caddy:2.10.2
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      ROTOTOOLS_DOMAIN: ${ROTOTOOLS_DOMAIN:?Set your public hostname}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - caddy-config:/config
+    depends_on: [api]
+volumes:
+  media:
+  certificates:
+  caddy-config:
