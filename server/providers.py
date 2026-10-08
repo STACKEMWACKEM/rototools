@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 from . import media, store
+from .model_artifacts import SAM2_TINY
 
 
 class SAM2:
@@ -15,9 +16,15 @@ class SAM2:
     def __init__(self):
         self.predictor = None
         self.reason = "SAM2_NOT_CONFIGURED"
-        self.checkpoint = os.getenv("SAM2_CHECKPOINT", "")
-        self.sha = os.getenv("SAM2_SHA256", "")
-        self.device = os.getenv("SAM2_DEVICE", "cuda")
+        configured = os.getenv("SAM2_CHECKPOINT", "").strip()
+        self.checkpoint = configured or str(
+            Path(os.getenv("SAM2_MODEL_DIR", "models")) / SAM2_TINY["filename"]
+        )
+        # A custom artifact must carry its own explicitly reviewed digest.
+        self.sha = os.getenv("SAM2_SHA256", "").strip() or (
+            "" if configured else SAM2_TINY["sha256"]
+        )
+        self.device = os.getenv("SAM2_DEVICE", "auto")
 
     def load(self):
         if not self.checkpoint or not Path(self.checkpoint).is_file():
@@ -35,15 +42,29 @@ class SAM2:
         try:
             import torch
 
+            if self.device == "auto":
+                self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            if self.device not in ("cuda", "cpu", "mps"):
+                self.reason = "SAM2_DEVICE_INVALID"
+                return False
             if self.device == "cuda" and not torch.cuda.is_available():
                 self.reason = "CUDA_GPU_UNAVAILABLE"
                 return False
+            if self.device == "mps" and not torch.backends.mps.is_available():
+                self.reason = "MPS_DEVICE_UNAVAILABLE"
+                return False
+            if self.device == "cpu":
+                torch.set_num_threads(
+                    max(1, min(8, int(os.getenv("SAM2_CPU_THREADS", "2"))))
+                )
             from sam2.build_sam import build_sam2_video_predictor
 
             self.predictor = build_sam2_video_predictor(
                 os.getenv("SAM2_CONFIG", "configs/sam2.1/sam2.1_hiera_t.yaml"),
                 self.checkpoint,
                 device=self.device,
+                # The optional connected-components extension requires CUDA.
+                apply_postprocessing=self.device == "cuda",
             )
             self.reason = None
             return True
@@ -54,6 +75,7 @@ class SAM2:
     def capabilities(self):
         return {
             "provider": self.name,
+            "device": self.device,
             "ready": self.predictor is not None,
             "reason": self.reason,
             "checkpoint": Path(self.checkpoint).name,

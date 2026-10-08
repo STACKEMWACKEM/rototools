@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import signal
 import shutil
 import threading
@@ -44,6 +45,7 @@ def work_once(provider, worker):
     except (ValueError, KeyError) as e:
         store.finish(job, "failed", error=str(e).strip("'"))
     except Exception:
+        logging.getLogger(__name__).exception("Processing job %s failed", job["id"])
         store.finish(job, "failed", error="PROCESSING_FAILED")
     finally:
         stop.set()
@@ -83,17 +85,27 @@ def main():
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     signal.signal(signal.SIGINT, lambda *_: stop.set())
-    last = 0
-    while not stop.is_set():
-        if time.time() - last > 15:
+    def keep_ready():
+        # Readiness must remain fresh while a long model/export job is running.
+        while not stop.wait(15):
             ready()
-            store.cleanup()
-            last = time.time()
-        used = work_once(provider, worker)
-        if args.once:
-            break
-        if not used:
-            stop.wait(0.5)
+
+    readiness = threading.Thread(target=keep_ready, daemon=True)
+    readiness.start()
+    last = 0
+    try:
+        while not stop.is_set():
+            if time.time() - last > 15:
+                store.cleanup()
+                last = time.time()
+            used = work_once(provider, worker)
+            if args.once:
+                break
+            if not used:
+                stop.wait(0.5)
+    finally:
+        stop.set()
+        readiness.join(timeout=2)
 
 
 if __name__ == "__main__":

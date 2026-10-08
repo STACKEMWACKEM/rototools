@@ -1,0 +1,30 @@
+{
+  "name": "Rototools with CPU AI",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "root",
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "forwardPorts": [
+    8000
+  ],
+  "portsAttributes": {
+    "8000": {
+      "label": "Rototools preview",
+      "onAutoForward": "openBrowser",
+      "protocol": "http"
+    }
+  },
+  "containerEnv": {
+    "SAM2_DEVICE": "cpu",
+    "SAM2_CPU_THREADS": "2",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postStartCommand": "bash .devcontainer/start.sh",
+  "waitFor": "postCreateCommand"
+}

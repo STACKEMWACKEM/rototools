@@ -6,14 +6,25 @@ server. This repository was created from scratch for the supplied mobile
 rotoscoping specification.
 
 **The full release is not complete.** The manual workflow and real exports are
-implemented. SAM 2.1 selection/temporal tracking has a real adapter, but model
-inference and model-quality tests are blocked by missing weights/runtime and
-GPU infrastructure. Physical iPhone, Android and Chromebook testing and public
-HTTPS deployment remain unverified. Fine-edge matting is unavailable.
+implemented. SAM 2.1 has a real selection/tracking adapter and a pinned CPU
+setup. Actual CPU selection, forward/backward temporal tracking and AI-mask
+exports passed the synthetic integration smoke. Real-subject quality and useful
+processing limits still require evaluation; see the verification report.
+Physical iPhone, Android and Chromebook checks and a live HTTPS preview remain
+unverified. Fine-edge matting is unavailable.
+
+## Try it without downloading a ZIP
+
+[Start the browser preview in GitHub Codespaces](https://codespaces.new/STACKEMWACKEM/rototools/tree/codex/ai-preview-setup).
+Click **Create codespace**, wait for setup, then open port **8000** in the
+**Ports** panel. The editor, processing worker and CPU AI runtime are installed
+together. Copy the private HTTPS address to your phone and sign in to the same
+GitHub account. See [the short preview guide](docs/preview.md) for testing,
+restart instructions and Codespaces allowance details.
 
 ## Local startup (manual tools plus CPU export)
 
-Requirements: Node 24, npm 11, Python 3.12, FFmpeg/ffprobe 7.1 with libx264,
+Requirements: Node 24, npm 11, Python 3.12, FFmpeg/ffprobe 6.1 or newer with libx264,
 AAC, FFV1, PNG and prores_ks. FFmpeg builds vary; the worker performs actual
 encode/decode capability checks instead of trusting codec names.
 
@@ -27,22 +38,17 @@ npm ci
 npm run build
 ```
 
-In three terminals, from the repository root:
+Start the built editor and processing worker together:
 
 ```bash
-# Terminal 1, activate .venv first
-python -m uvicorn server.app:app --host 127.0.0.1 --port 8000
-
-# Terminal 2, activate .venv first
-python -m server.worker
-
-# Terminal 3
-npm run dev -- --port 5173
+source .venv/bin/activate
+python -m server.serve --host 127.0.0.1
 ```
 
-Open `http://localhost:5173`. Vite forwards `/api` to port 8000. The built app
-can also be opened directly at `http://localhost:8000`. Restart the API after
-the first build so it mounts the `dist` directory. For manual-only offline
+Open `http://localhost:8000`. Stopping the launcher stops both processes;
+a failed process also stops the other service. For frontend development, run
+`npm run dev -- --port 5173` in another terminal and open
+`http://localhost:5173`; Vite forwards `/api` to port 8000. For manual-only offline
 development, run Vite without the API/worker: compatible local video import,
 shapes, paths, brush, layers, keyframes, edge controls, saving, portable backup
 and a current-frame preview PNG still work. Video exports require the server.
@@ -132,7 +138,7 @@ and [verification / remaining release work](docs/verification.md).
 
 If video exports are disabled, start the worker and refresh Capabilities. If
 selection is disabled, inspect its actual model dependency code and follow the
-SAM setup guide. An interrupted upload can be retried with the same clip; the
+SAM setup guide in [deployment.md](docs/deployment.md). An interrupted upload can be retried with the same clip; the
 server returns its acknowledged offset. A save-quota failure should be handled
 by downloading a backup before clearing data. If a saved source is missing,
 relink the original clip; another file is rejected. If a job expired, reprepare
