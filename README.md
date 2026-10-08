@@ -7,8 +7,9 @@ rotoscoping specification.
 
 **The full release is not complete.** The manual workflow and real exports are
 implemented. SAM 2.1 has a real selection/tracking adapter and a pinned CPU
-setup. Model download and CPU loading have been verified; real inference and
-subject-quality verification are tracked separately in the verification report.
+setup. Actual CPU selection, forward/backward temporal tracking and AI-mask
+exports passed the synthetic integration smoke. Real-subject quality and useful
+processing limits still require evaluation; see the verification report.
 Physical iPhone, Android and Chromebook checks and a live HTTPS preview remain
 unverified. Fine-edge matting is unavailable.
 

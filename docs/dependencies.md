@@ -3,7 +3,8 @@
 The exact JavaScript graph is pinned in package-lock.json; npm-dependencies.json
 records observed versions and package license declarations. The exact Python
 graph used by the build is pinned in requirements.lock.txt. requirements.txt lists
-direct dependencies; requirements-ai.txt is optional and not installed here.
+direct dependencies; requirements-ai.txt is optional for manual-only startup
+and is installed by the CPU preview setup.
 The browser-preview setup also pins CPU PyTorch 2.7.1, torchvision 0.22.1,
 SAM source, and the independently reviewed model artifact below. SAM's
 transitive dependencies are resolved by pip; they are not a fully locked AI graph.
